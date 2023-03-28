@@ -377,13 +377,12 @@ void scheduleMatmul(
   // [... M,N,K]
   scheduler_utils::matmul_utils::makeTile(cc, gemm_tile.cta_tile.toVector());
 
-  int factor = getenv("SWIZZLE_FACTOR") != nullptr
-      ? std::atoi(getenv("SWIZZLE_FACTOR"))
+  int factor = getenv("SWIZZLE_FACTOR_SCHEDULE") != nullptr
+      ? std::atoi(getenv("SWIZZLE_FACTOR_SCHEDULE"))
       : 1;
   if (factor != 1) {
     if (params.rasterization_order ==
         MatmulParam::TileRasterizationOrder::RowMajor) {
-      bidx_dim = 0;
       cc->split(1, 4);
       // [I1, I2/4, 4]
       cc->reorder({{1, 2}});
