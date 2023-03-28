@@ -377,16 +377,30 @@ void scheduleMatmul(
   // [... M,N,K]
   scheduler_utils::matmul_utils::makeTile(cc, gemm_tile.cta_tile.toVector());
 
-  // int factor =
-  //     getenv("SWIZZLE_FACTOR") != nullptr ?
-  //     std::atoi(getenv("SWIZZLE_FACTOR")) : 1;
-  // if (factor != 1) {
-  //   cc->split(1, factor, false); // outer split
-  //   cc->split(0, factor, true); // inner
-  //   // Mo, Mi, Ni, Mo
-  //   cc->merge(1, 2);
-  //   cc->merge(2, 1);
-  // }
+  int factor = getenv("SWIZZLE_FACTOR") != nullptr
+      ? std::atoi(getenv("SWIZZLE_FACTOR"))
+      : 1;
+  if (factor != 1) {
+    if (params.rasterization_order ==
+        MatmulParam::TileRasterizationOrder::RowMajor) {
+      bidx_dim = 0;
+      cc->split(1, 4);
+      // [I1, I2/4, 4]
+      cc->reorder({{1, 2}});
+      // [I1, 4, I2/4]
+      cc->merge(0);
+      // [I1*4, I2/4]
+    } else if (
+        params.rasterization_order ==
+        MatmulParam::TileRasterizationOrder::ColumnMajor) {
+      cc->split(0, 4);
+      // [I1/4, 4, I2]
+      cc->reorder({{1, 2}});
+      // [I1/4, I2, 4]
+      cc->merge(1);
+      // [I1/4, I2*4]
+    }
+  }
 
   // [Mo, No, Ko, Mi, Ni, Ki]
   // Propagate tiling globally
