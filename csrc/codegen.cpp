@@ -170,7 +170,7 @@ class CudaKernelGenerator : private OptOutConstDispatch {
   void genDeclaration(const std::string& kernel_name) {
     const auto& kernel_summary = kernel_->summary();
 
-    code_ << "__global__ void " << kernel_name << "(";
+    code_ << "__global__ LAUNCH_BOUNDS void " << kernel_name << "(";
 
     std::unordered_set<Val*> unique_args;
 

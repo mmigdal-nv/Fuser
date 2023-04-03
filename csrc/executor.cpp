@@ -90,6 +90,21 @@ static const std::string& includeStdComplex() {
   return result;
 }
 
+static const std::string& getLaunchBoundsDefault() {
+  static std::string result = std::string(R"ESCAPE(
+#ifndef LAUNCH_BOUNDS_MAX_THREADS
+#define LAUNCH_BOUNDS __launch_bounds__(4096)
+#else
+#ifdef LAUNCH_BOUNDS_MIN_CTA
+#define LAUNCH_BOUNDS __launch_bounds__(LAUNCH_BOUNDS_MAX_THREADS, LAUNCH_BOUNDS_MIN_CTA)
+#else
+#define LAUNCH_BOUNDS __launch_bounds__(LAUNCH_BOUNDS_MAX_THREADS)
+#endif
+#endif
+)ESCAPE");
+  return result;
+}
+
 } // namespace
 
 std::string FusionExecutor::getStructuredCode(
@@ -100,6 +115,7 @@ std::string FusionExecutor::getStructuredCode(
   if (shouldAssertOutOfBound()) {
     code += "#define ASSERT_OUT_OF_BOUND 1";
   }
+  code += getLaunchBoundsDefault();
   code += includeStdComplex();
   code += std::string("namespace ") + FusionExecutor::kernelNamespace() +
       " {\n" + defineIntegerTypes() + defineIndexType(index_type) +

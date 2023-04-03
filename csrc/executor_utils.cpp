@@ -1209,6 +1209,45 @@ std::tuple<NvrtcFunction, std::string, std::vector<char>> nvrtcCompile(
     }
   }
 
+  std::string launchbounds_maxthreads = "";
+  std::string launchbounds_mincta = "";
+  // if NVFUSER_LAUNCHBOUNDS_THREADS_TARGET is set, nvFuser will try to generate
+  // runtime __launch_bounds__ config that will hint the compiler that we want
+  // NVFUSER_LAUNCHBOUNDS_THREADS_TARGET threads active during kernel execution
+
+  static std::optional<int> launchbounds_threads_target =
+      []() -> std::optional<int> {
+    auto ptr = getenv("NVFUSER_LAUNCHBOUNDS_THREADS_TARGET");
+    if (!ptr) {
+      return std::nullopt;
+    } else {
+      auto as_int = std::atoi(ptr);
+      if (as_int < 1) {
+        return std::nullopt;
+      }
+      return as_int;
+    }
+  }();
+
+  if (opt_block_size && launchbounds_threads_target && *opt_block_size > 0) {
+    launchbounds_maxthreads =
+        "-DLAUNCH_BOUNDS_MAX_THREADS=" + std::to_string(*opt_block_size);
+
+    int reqd_cta_min = 1;
+    const int target_active_threads =
+        std::atoi(getenv("NVFUSER_LAUNCHBOUNDS_THREADS_TARGET"));
+    if (*opt_block_size < target_active_threads) {
+      reqd_cta_min =
+          (target_active_threads + *opt_block_size - 1) / *opt_block_size;
+    }
+
+    launchbounds_mincta =
+        "-DLAUNCH_BOUNDS_MIN_CTA=" + std::to_string(reqd_cta_min);
+
+    args.push_back(launchbounds_maxthreads.c_str());
+    args.push_back(launchbounds_mincta.c_str());
+  }
+
   // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
   std::vector<char> ptx;
   std::string lowered_kernel_name_str;
